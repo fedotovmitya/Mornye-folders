@@ -1,0 +1,81 @@
+name: Build Android APK (Folders)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-apk.yml'
+      - 'lib/screens/local_music_folders_screen.dart'
+      - 'lib/screens/mornye_library_screen.dart'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build arm64 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MORNYE_DISCORD_SDK: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.1"
+
+      - name: Install Android SDK and NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;30.0.16248370" \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "cmake;4.1.2"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+
+      - name: Install Rust prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev ffmpeg
+          cd rust_backend
+          rustup show
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Configure Flutter SDK for Gradle
+        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+
+      - name: Build Lite ARM64 release APK
+        run: bash scripts/build_android.sh --lite --target lib/main.dart
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mornye-folders-arm64-apk
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          if-no-files-found: error
+          retention-days: 14
