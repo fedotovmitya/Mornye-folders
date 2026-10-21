@@ -410,6 +410,8 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
         return context.l10n.searchArtists;
       case 'playlists':
         return context.l10n.searchPlaylists;
+      case 'folders':
+        return context.l10n.libraryFolders;
       default:
         return context.l10n.libraryDefaultViewLastUsed;
     }
@@ -423,6 +425,7 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
       ('singles', Icons.audiotrack, context.l10n.historyFilterSingles),
       ('artists', Icons.person, context.l10n.searchArtists),
       ('playlists', Icons.queue_music, context.l10n.searchPlaylists),
+      ('folders', Icons.folder_outlined, context.l10n.libraryFolders),
     ];
     showAppScrollableBottomSheet<void>(
       context: context,

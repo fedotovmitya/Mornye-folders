@@ -81,6 +81,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:mornye/services/cover_cache_manager.dart';
 import 'package:mornye/screens/library_tracks_folder_screen.dart';
 import 'package:mornye/screens/local_album_screen.dart';
+import 'package:mornye/screens/library_folders_screen.dart';
 import 'package:mornye/screens/mornye_library_screen.dart';
 import 'package:mornye/controllers/completion_bridge_tracker.dart';
 import 'package:mornye/controllers/queue_library_pager.dart';
@@ -155,9 +156,15 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
   PageController? _filterPageController;
 
-  /// Pages of the Library pager: Songs, Albums, Artists and Playlists.
+  /// Pages of the Library pager: Songs, Albums, Artists, Playlists and Folders.
   /// Singles share the Albums page behind [_albumsShowSingles].
-  final List<String> _filterModes = ['all', 'albums', 'artists', 'playlists'];
+  final List<String> _filterModes = [
+    'all',
+    'albums',
+    'artists',
+    'playlists',
+    'folders',
+  ];
   bool _albumsShowSingles = false;
 
   int _pageIndexFor(String mode) =>
@@ -673,7 +680,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
     final activePageRequest = pageRequest(historyFilterMode);
     // The Artists page browses its own query.
-    final activePageValue = searchingLibrary || historyFilterMode == 'artists'
+    final activePageValue = searchingLibrary ||
+        historyFilterMode == 'artists' ||
+        historyFilterMode == 'folders'
         ? const AsyncData(_QueueLibraryPageData())
         : ref.watch(_queueLibraryPageProvider(activePageRequest));
 
@@ -725,7 +734,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final currentTotalCount = switch (historyFilterMode) {
       'albums' => queueCounts.albumCount,
       'singles' => queueCounts.singleTrackCount,
-      'playlists' || 'artists' => 0,
+      'playlists' || 'artists' || 'folders' => 0,
       _ => queueCounts.allTrackCount,
     };
     final hasMoreLibrary = currentLoadedCount < currentTotalCount;
@@ -865,6 +874,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                                 // shows none rather than a guess.
                                 (context.l10n.searchArtists, null),
                                 (context.l10n.searchPlaylists, playlistCount),
+                                (context.l10n.libraryFolders, null),
                               ],
                             );
                           }
@@ -925,6 +935,13 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                                       context.l10n.searchPlaylists,
                                       playlistCount,
                                     ),
+                                    const SizedBox(width: 8),
+                                    tab(
+                                      4,
+                                      Icons.folder_outlined,
+                                      context.l10n.libraryFolders,
+                                      null,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -977,6 +994,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                       itemBuilder: (context, index) {
                         if (_filterModes[index] == 'artists') {
                           return _buildArtistsPage(context, colorScheme);
+                        }
+                        if (_filterModes[index] == 'folders') {
+                          return const LibraryFoldersView();
                         }
                         final filterMode = _modeForPage(index);
                         final filterData = getFilterData(filterMode);

@@ -6,6 +6,7 @@ import 'package:mornye/providers/local_library_provider.dart';
 import 'package:mornye/screens/local_album_screen.dart';
 import 'package:mornye/services/library_database.dart';
 import 'package:mornye/utils/file_access.dart';
+import 'package:mornye/utils/nav_bar_inset.dart';
 import 'package:mornye/utils/saf_display_path.dart';
 import 'package:path/path.dart' as p;
 
@@ -91,19 +92,36 @@ List<LibraryFolderGroup> groupLibraryTracksByFolder(
   return result;
 }
 
-/// Browse the local library by the folders the music lives in.
-class LibraryFoldersScreen extends ConsumerStatefulWidget {
+/// Standalone page (own app bar) for places that open Folders as a screen.
+class LibraryFoldersScreen extends StatelessWidget {
   const LibraryFoldersScreen({super.key});
 
   @override
-  ConsumerState<LibraryFoldersScreen> createState() =>
-      _LibraryFoldersScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.libraryFolders)),
+      body: const LibraryFoldersView(),
+    );
+  }
 }
 
-class _LibraryFoldersScreenState extends ConsumerState<LibraryFoldersScreen> {
+/// Folder list of the local library, without any app bar so it can sit
+/// inside the Library tab pager as well as in [LibraryFoldersScreen].
+class LibraryFoldersView extends ConsumerStatefulWidget {
+  const LibraryFoldersView({super.key});
+
+  @override
+  ConsumerState<LibraryFoldersView> createState() => _LibraryFoldersViewState();
+}
+
+class _LibraryFoldersViewState extends ConsumerState<LibraryFoldersView>
+    with AutomaticKeepAliveClientMixin {
   List<LibraryFolderGroup>? _folders;
   Object? _error;
   int _loadedVersion = -1;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -112,12 +130,12 @@ class _LibraryFoldersScreenState extends ConsumerState<LibraryFoldersScreen> {
   }
 
   Future<void> _load() async {
-    final version = ref.read(localLibraryProvider).loadedIndexVersion;
-    _loadedVersion = version;
+    _loadedVersion = ref.read(localLibraryProvider).loadedIndexVersion;
     try {
       final rows = await LibraryDatabase.instance.getAll();
-      final items = rows.map(LocalLibraryItem.fromJson);
-      final folders = groupLibraryTracksByFolder(items);
+      final folders = groupLibraryTracksByFolder(
+        rows.map(LocalLibraryItem.fromJson),
+      );
       if (!mounted) return;
       setState(() {
         _folders = folders;
@@ -152,7 +170,8 @@ class _LibraryFoldersScreenState extends ConsumerState<LibraryFoldersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Reload when a library scan finishes while this screen is open.
+    super.build(context);
+    // Reload when a library scan finishes while this view is open.
     ref.listen(localLibraryProvider.select((s) => s.loadedIndexVersion), (
       _,
       next,
@@ -163,56 +182,56 @@ class _LibraryFoldersScreenState extends ConsumerState<LibraryFoldersScreen> {
     final colors = Theme.of(context).colorScheme;
     final folders = _folders;
 
-    Widget body;
     if (_error != null) {
-      body = Center(child: Text(_error.toString()));
-    } else if (folders == null) {
-      body = const Center(child: CircularProgressIndicator());
-    } else if (folders.isEmpty) {
-      body = Center(
+      return Center(child: Text(_error.toString()));
+    }
+    if (folders == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (folders.isEmpty) {
+      return Center(
         child: Text(
           context.l10n.libraryEmptyCollection,
           style: TextStyle(color: colors.onSurfaceVariant),
         ),
       );
-    } else {
-      body = ListView.separated(
-        padding: const EdgeInsets.only(bottom: 24),
-        itemCount: folders.length,
-        separatorBuilder: (context, index) => const Divider(height: 1, indent: 72),
-        itemBuilder: (context, index) {
-          final folder = folders[index];
-          return ListTile(
-            leading: Icon(
-              Icons.folder_outlined,
-              color: colors.primary,
-              size: 28,
-            ),
-            title: Text(
-              folder.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              folder.parent.isEmpty
-                  ? '${folder.tracks.length}'
-                  : '${folder.tracks.length} · ${folder.parent}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: colors.onSurfaceVariant,
-            ),
-            onTap: () => _openFolder(folder),
-          );
-        },
-      );
     }
-
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.libraryFolders)),
-      body: body,
+    return CustomScrollView(
+      slivers: [
+        SliverList.separated(
+          itemCount: folders.length,
+          separatorBuilder: (context, index) =>
+              const Divider(height: 1, indent: 72),
+          itemBuilder: (context, index) {
+            final folder = folders[index];
+            return ListTile(
+              leading: Icon(
+                Icons.folder_outlined,
+                color: colors.primary,
+                size: 28,
+              ),
+              title: Text(
+                folder.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                folder.parent.isEmpty
+                    ? '${folder.tracks.length}'
+                    : '${folder.tracks.length} · ${folder.parent}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: colors.onSurfaceVariant,
+              ),
+              onTap: () => _openFolder(folder),
+            );
+          },
+        ),
+        const NavBarSliverSpacer(),
+      ],
     );
   }
 }
