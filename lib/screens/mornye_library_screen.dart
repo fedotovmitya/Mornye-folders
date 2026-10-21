@@ -7,9 +7,9 @@ import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/library_browse_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/screens/downloaded_album_screen.dart';
+import 'package:mornye/screens/library_folders_screen.dart';
 import 'package:mornye/screens/listening_rewind_screen.dart';
 import 'package:mornye/screens/local_album_screen.dart';
-import 'package:mornye/screens/local_music_folders_screen.dart';
 import 'package:mornye/services/album_completeness.dart';
 import 'package:mornye/services/downloaded_embedded_cover_resolver.dart';
 import 'package:mornye/services/library_database.dart';
@@ -378,10 +378,10 @@ class _MornyeLibraryScreenState extends ConsumerState<MornyeLibraryScreen> {
                       ),
                       (
                         Icons.folder_outlined,
-                        'Folders',
+                        context.l10n.libraryFolders,
                         () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => const LocalMusicFoldersScreen(),
+                            builder: (_) => const LibraryFoldersScreen(),
                           ),
                         ),
                       ),
