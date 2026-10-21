@@ -7,7 +7,7 @@ on:
       - main
     paths:
       - '.github/workflows/build-apk.yml'
-      - 'lib/screens/local_music_folders_screen.dart'
+      - 'lib/screens/library_folders_screen.dart'
       - 'lib/screens/mornye_library_screen.dart'
 
 permissions:
