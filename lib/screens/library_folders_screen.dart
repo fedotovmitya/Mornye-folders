@@ -7,6 +7,8 @@ import 'package:mornye/screens/local_album_screen.dart';
 import 'package:mornye/services/library_database.dart';
 import 'package:mornye/utils/file_access.dart';
 import 'package:mornye/utils/nav_bar_inset.dart';
+import 'package:mornye/widgets/cached_cover_image.dart';
+import 'package:mornye/widgets/local_library_artwork_builder.dart';
 import 'package:mornye/utils/saf_display_path.dart';
 import 'package:path/path.dart' as p;
 
@@ -84,6 +86,14 @@ List<LibraryFolderGroup> groupLibraryTracksByFolder(
         .tracks
         .add(item);
   }
+  for (final group in groups.values) {
+    group.tracks.sort((a, b) {
+      final disc = (a.discNumber ?? 1).compareTo(b.discNumber ?? 1);
+      if (disc != 0) return disc;
+      final number = (a.trackNumber ?? 999).compareTo(b.trackNumber ?? 999);
+      return number != 0 ? number : a.trackName.compareTo(b.trackName);
+    });
+  }
   final result = groups.values.toList(growable: false)
     ..sort((a, b) {
       final byName = a.name.toLowerCase().compareTo(b.name.toLowerCase());
@@ -148,12 +158,17 @@ class _LibraryFoldersViewState extends ConsumerState<LibraryFoldersView>
   }
 
   void _openFolder(LibraryFolderGroup folder) {
-    String? cover;
-    for (final track in folder.tracks) {
-      final path = track.coverPath;
-      if (path != null && path.isNotEmpty) {
-        cover = path;
-        break;
+    final firstCover = folder.tracks.first.coverPath;
+    String? cover = firstCover != null && firstCover.isNotEmpty
+        ? firstCover
+        : null;
+    if (cover == null) {
+      for (final track in folder.tracks) {
+        final path = track.coverPath;
+        if (path != null && path.isNotEmpty) {
+          cover = path;
+          break;
+        }
       }
     }
     Navigator.of(context).push(
@@ -205,11 +220,7 @@ class _LibraryFoldersViewState extends ConsumerState<LibraryFoldersView>
           itemBuilder: (context, index) {
             final folder = folders[index];
             return ListTile(
-              leading: Icon(
-                Icons.folder_outlined,
-                color: colors.primary,
-                size: 28,
-              ),
+              leading: _FolderArtwork(track: folder.tracks.first),
               title: Text(
                 folder.name,
                 maxLines: 1,
@@ -217,8 +228,9 @@ class _LibraryFoldersViewState extends ConsumerState<LibraryFoldersView>
               ),
               subtitle: Text(
                 folder.parent.isEmpty
-                    ? '${folder.tracks.length}'
-                    : '${folder.tracks.length} · ${folder.parent}',
+                    ? context.l10n.queueTrackCount(folder.tracks.length)
+                    : '${context.l10n.queueTrackCount(folder.tracks.length)}'
+                          ' · ${folder.parent}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -232,6 +244,43 @@ class _LibraryFoldersViewState extends ConsumerState<LibraryFoldersView>
         ),
         const NavBarSliverSpacer(),
       ],
+    );
+  }
+}
+
+/// Cover of the folder's first track, like an album thumbnail. Folders whose
+/// first track has no artwork show a folder icon instead.
+class _FolderArtwork extends StatelessWidget {
+  const _FolderArtwork({required this.track});
+
+  final LocalLibraryItem track;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    Widget fallback(BuildContext context) => ColoredBox(
+      color: colors.surfaceContainerHighest,
+      child: Center(
+        child: Icon(Icons.folder_outlined, size: 26, color: colors.primary),
+      ),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox.square(
+        dimension: 52,
+        child: LocalLibraryArtworkBuilder(
+          coverPath: track.coverPath,
+          filePath: track.filePath,
+          builder: (context, cover) => cover == null
+              ? fallback(context)
+              : LocalOrNetworkCoverImage(
+                  url: cover,
+                  fit: BoxFit.cover,
+                  localCacheWidth: 156,
+                  placeholder: fallback,
+                ),
+        ),
+      ),
     );
   }
 }
