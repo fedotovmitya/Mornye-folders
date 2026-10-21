@@ -7561,5 +7561,9 @@
   "optionsEmbeddedCoverSizeOriginal": "Original resolution",
   "@optionsEmbeddedCoverSizeOriginal": {
     "description": "Option that preserves the provider artwork at its original resolution"
+  },
+  "libraryFolders": "Folders",
+  "@libraryFolders": {
+    "description": "Library category - browse local music by folder"
   }
 }

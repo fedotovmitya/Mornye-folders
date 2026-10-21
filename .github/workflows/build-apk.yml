@@ -1,0 +1,85 @@
+name: Build APK
+
+# Manual build of installable Android APKs (Lite variant, no secrets needed).
+# Run it from the Actions tab: Build APK -> Run workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Build Lite APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: "temurin"
+          java-version: "25"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          gradle-version: "9.8.1"
+          gradle-home-cache-includes: |
+            caches/modules-2
+            notifications
+
+      - name: Install Android SDK & NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;30.0.16248370" \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "cmake;4.1.2"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Configure Flutter SDK for Gradle
+        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+
+      - name: Install Rust build prerequisites
+        run: |
+          cd rust_backend
+          rustup show
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev
+
+      - name: Cache Cargo registry and build output
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust_backend/target
+          key: cargo-${{ runner.os }}-apk-${{ hashFiles('rust_backend/rust-toolchain.toml') }}-${{ hashFiles('rust_backend/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-apk-${{ hashFiles('rust_backend/rust-toolchain.toml') }}-
+
+      - name: Build Lite release APKs
+        run: bash scripts/build_android.sh --lite --target lib/main.dart
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mornye-apk-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 30
+          path: build/app/outputs/flutter-apk/*release.apk

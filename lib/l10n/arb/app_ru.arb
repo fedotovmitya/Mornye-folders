@@ -6805,5 +6805,9 @@
   "optionsEmbeddedCoverSizeOriginal": "Оригинальное разрешение",
   "@optionsEmbeddedCoverSizeOriginal": {
     "description": "Option that preserves the provider artwork at its original resolution"
+  },
+  "libraryFolders": "Папки",
+  "@libraryFolders": {
+    "description": "Library category - browse local music by folder"
   }
 }
